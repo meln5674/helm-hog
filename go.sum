@@ -19,8 +19,8 @@ github.com/json-iterator/go v1.1.12 h1:PV8peI4a0ysnczrg+LtxykD8LfKY9ML6u2jnxaEnr
 github.com/json-iterator/go v1.1.12/go.mod h1:e30LSqwooZae/UwlEbR2852Gd8hjQvJoHmT4TnhNGBo=
 github.com/kisielk/errcheck v1.5.0/go.mod h1:pFxgyoBC7bSaBwPgfKdkLd5X25qrDl4LWUI2bnpBCr8=
 github.com/kisielk/gotool v1.0.0/go.mod h1:XhKaO+MFFWcvkIS/tQcRk01m1F5IRFswLeQ+oQHNcck=
-github.com/meln5674/gosh v0.0.0-20230127195542-cc145651d81c h1:LN8JLqX6XNsTDGQ8Wl0l/UJp97arsjvNhsawsAP71FE=
-github.com/meln5674/gosh v0.0.0-20230127195542-cc145651d81c/go.mod h1:ZEvBGjiPHZWR1l61SoCJcduUQ/tFKw9iQ+X86i5engI=
+github.com/meln5674/gosh v0.0.0-20230414232448-2a61f71ac911 h1:by7WDDRDTGTzhZ2EY9Bb3ruuZ82rUYuMlG/eGAzzlf4=
+github.com/meln5674/gosh v0.0.0-20230414232448-2a61f71ac911/go.mod h1:ZEvBGjiPHZWR1l61SoCJcduUQ/tFKw9iQ+X86i5engI=
 github.com/modern-go/concurrent v0.0.0-20180228061459-e0a39a4cb421/go.mod h1:6dJC0mAP4ikYIbvyc7fijjWJddQyLn8Ig3JB5CqoB9Q=
 github.com/modern-go/concurrent v0.0.0-20180306012644-bacd9c7ef1dd h1:TRLaZ9cD/w8PVh93nsPXa1VrQ6jlwL5oN8l14QlcNfg=
 github.com/modern-go/concurrent v0.0.0-20180306012644-bacd9c7ef1dd/go.mod h1:6dJC0mAP4ikYIbvyc7fijjWJddQyLn8Ig3JB5CqoB9Q=
