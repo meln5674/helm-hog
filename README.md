@@ -6,6 +6,23 @@ Helm Hog is a tool used to quickly test many different combinations of values fo
 
 "Hog" comes from a nautical term, referring to a brush used to clean the bottom of a ship.
 
+## Installing
+
+```bash
+go install github.com/meln5674/helm-hog@latest
+```
+
+## Running
+
+```bash
+# Validate your configuration
+helm-hog validate
+# List all cases to be run
+helm-hog list
+# Run tests
+helm-hog test
+```
+
 ## Basic concepts
 
 Helm Hog works by quickly generating many combinations of overlayed value files from sets you provide.
