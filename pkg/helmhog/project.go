@@ -25,6 +25,11 @@ type PartsDirectory = string
 
 type PartPath = string
 
+type ProjectSettings struct {
+	HelmFlags    []string
+	KubectlFlags []string
+}
+
 type Project struct {
 	metav1.TypeMeta
 	Chart         string                    `json:"chart,omitempty"`
@@ -50,7 +55,7 @@ func (p *Project) Allows(c Case) bool {
 	return true
 }
 
-func (p *Project) Load() (*LoadedProject, error) {
+func (p *Project) Load(settings ProjectSettings) (*LoadedProject, error) {
 	var err error
 	if p.APIVersion != V1Alpha1APIVersion {
 		return nil, fmt.Errorf("Unknown apiVersion: %s", p.APIVersion)
@@ -247,6 +252,8 @@ func (p *Project) Load() (*LoadedProject, error) {
 		l.Chart = p.Chart
 	}
 
+	l.Settings = settings
+
 	return &l, nil
 }
 
@@ -254,6 +261,8 @@ type LoadedProject struct {
 	*Project
 	TempDir string
 	Chart   string
+
+	Settings ProjectSettings
 
 	VariableOrder        []VariableName
 	ReverseVariableOrder []VariableName
@@ -297,17 +306,21 @@ func (l *LoadedProject) ValuesArgs(c Case) []string {
 
 func (l *LoadedProject) Lint(c Case) gosh.Commander {
 	cmd := []string{"helm", "lint", l.Chart}
+	cmd = append(cmd, l.Settings.HelmFlags...)
 	cmd = append(cmd, l.ValuesArgs(c)...)
 	return gosh.Command(cmd...).WithStreams(gosh.FileOut(l.TempPath(c, "lint.out")), gosh.FileErr(l.TempPath(c, "lint.err")))
 }
 
 func (l *LoadedProject) ApplyDryRun(c Case) gosh.Commander {
-	cmd := []string{"helm", "template", l.Chart, "--debug"}
-	cmd = append(cmd, l.ValuesArgs(c)...)
+	template := []string{"helm", "template", l.Chart, "--debug"}
+	template = append(template, l.Settings.HelmFlags...)
+	template = append(template, l.ValuesArgs(c)...)
+	apply := []string{"kubectl", "apply", "-f", "-", "--dry-run=client"}
+	apply = append(apply, l.Settings.KubectlFlags...)
 	return gosh.Pipeline(
-		gosh.Command(cmd...).WithStreams(gosh.FileErr(l.TempPath(c, "template.err"))),
-		gosh.Command("tee", l.TempPath(c, "template.out")),
-		gosh.Command("kubectl", "apply", "-f", "-", "--dry-run", "client").WithStreams(gosh.FileOut(l.TempPath(c, "apply.out")), gosh.FileErr(l.TempPath(c, "apply.err"))),
+		gosh.Command(template...).WithStreams(gosh.FileErr(l.TempPath(c, "template.err"))),
+		gosh.Command("tee", l.TempPath(c, "template.out")).WithStreams(gosh.FileErr(l.TempPath(c, "tee.err"))),
+		gosh.Command(apply...).WithStreams(gosh.FileOut(l.TempPath(c, "apply.out")), gosh.FileErr(l.TempPath(c, "apply.err"))),
 	)
 }
 
@@ -327,8 +340,8 @@ func (l *LoadedProject) MakeCaseTempDir(c Case) error {
 	return os.MkdirAll(filepath.Join(l.CaseTempDirParts(c)...), 0700)
 }
 
-func (l *LoadedProject) TempPath(c Case, basename string) string {
+func (l *LoadedProject) TempPath(c Case, then ...string) string {
 	parts := l.CaseTempDirParts(c)
-	parts = append(parts, basename)
+	parts = append(parts, then...)
 	return filepath.Join(parts...)
 }

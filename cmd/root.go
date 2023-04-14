@@ -4,11 +4,13 @@ Copyright © 2023 NAME HERE <EMAIL ADDRESS>
 package cmd
 
 import (
+	goflag "flag"
 	"fmt"
 	"os"
 
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
+	"k8s.io/klog/v2"
 
 	"sigs.k8s.io/yaml"
 
@@ -20,6 +22,9 @@ var (
 
 	project       *helmhog.Project
 	loadedProject *helmhog.LoadedProject
+
+	helmFlags    []string
+	kubectlFlags []string
 )
 
 // rootCmd represents the base command when called without any subcommands
@@ -41,6 +46,12 @@ func Execute() {
 
 func init() {
 	rootCmd.PersistentFlags().StringVar(&projectPath, "project", "hog.yaml", "Path to project YAML file")
+	rootCmd.PersistentFlags().StringSliceVar(&helmFlags, "helm-flags", []string{}, "Extra flags to pass to the helm command")
+	rootCmd.PersistentFlags().StringSliceVar(&kubectlFlags, "kubectl-flags", []string{}, "Extra flags to pass to the kubectl command")
+
+	klogFlags := goflag.NewFlagSet("", goflag.PanicOnError)
+	klog.InitFlags(klogFlags)
+	rootCmd.PersistentFlags().AddGoFlagSet(klogFlags)
 }
 
 func loadProject(*cobra.Command, []string) error {
@@ -53,7 +64,10 @@ func loadProject(*cobra.Command, []string) error {
 	if err != nil {
 		return errors.Wrap(err, "parse project yaml")
 	}
-	loadedProject, err = project.Load()
+	loadedProject, err = project.Load(helmhog.ProjectSettings{
+		KubectlFlags: kubectlFlags,
+		HelmFlags:    helmFlags,
+	})
 	if err != nil {
 		return errors.Wrap(err, "invalid project")
 	}
