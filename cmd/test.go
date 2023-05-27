@@ -15,10 +15,11 @@ import (
 )
 
 var (
-	testBatch       bool
-	testOnlyLint    bool
-	testParallel    int
-	testKeepReports bool
+	testBatch              bool
+	testOnlyLint           bool
+	testParallel           int
+	testKeepReports        bool
+	testPruneFailedChoices bool
 )
 
 // testCmd represents the test command
@@ -49,11 +50,20 @@ to quickly create a Cobra application.`,
 
 		go loadedProject.GenerateCases(cases)
 
+		fmt.Printf("Reports will be kept at %s\n", loadedProject.TempDir)
+
 		failed := make([]helmhog.Case, 0)
+		skipped := make([]helmhog.Case, 0)
+
+		failedVariables := make(map[helmhog.VariableName]map[helmhog.ChoiceName]struct{}, len(loadedProject.Variables))
+		for k, v := range loadedProject.Variables {
+			failedVariables[k] = make(map[helmhog.ChoiceName]struct{}, len(v))
+		}
 
 		type result struct {
-			err error
-			c   helmhog.Case
+			err     error
+			c       helmhog.Case
+			skipped bool
 		}
 
 		results := make(chan result)
@@ -66,10 +76,17 @@ to quickly create a Cobra application.`,
 		worker := func() {
 			defer func() { workerSem <- struct{}{} }()
 			for c := range cases {
-				err := func() error {
+				skipped, err := func() (bool, error) {
+					if testPruneFailedChoices {
+						for k, v := range c {
+							if _, ok := failedVariables[k][v]; ok {
+								return true, nil
+							}
+						}
+					}
 					err := loadedProject.MakeCaseTempDir(c)
 					if err != nil {
-						return errors.Wrap(err, fmt.Sprintf("create temp dir for case %v", c))
+						return false, errors.Wrap(err, fmt.Sprintf("create temp dir for case %v", c))
 					}
 					if testOnlyLint {
 						err = loadedProject.Lint(c).Run()
@@ -77,15 +94,15 @@ to quickly create a Cobra application.`,
 						err = loadedProject.Validate(c).Run()
 					}
 					if err == nil {
-						return err
+						return false, err
 					}
 					writeErr := os.WriteFile(loadedProject.TempPath(c, "err"), []byte(err.Error()), 0600)
 					if writeErr != nil {
-						return errors.Wrap(err, fmt.Sprintf("write error file for case %v: %v", c, err))
+						return false, errors.Wrap(err, fmt.Sprintf("write error file for case %v: %v", c, err))
 					}
-					return err
+					return false, err
 				}()
-				results <- result{c: c, err: err}
+				results <- result{c: c, err: err, skipped: skipped}
 			}
 		}
 
@@ -99,23 +116,53 @@ to quickly create a Cobra application.`,
 			close(results)
 		}()
 
+		resultCount := 0
 		for result := range results {
 			if result.err != nil {
 				failed = append(failed, result.c)
+				for k, v := range result.c {
+					failedVariables[k][v] = struct{}{}
+				}
+				if len(failed) != 0 && len(failed)%10 == 0 {
+					fmt.Printf("%d cases failed\n", len(failed))
+				}
+			}
+			if result.skipped {
+				skipped = append(skipped, result.c)
+				if len(skipped)%10 == 0 {
+					fmt.Printf("%d cases skipped\n", len(skipped))
+				}
+			} else {
+				resultCount++
+				if resultCount%10 == 0 {
+					fmt.Printf("%d cases completed\n", resultCount)
+				}
 			}
 		}
 
-		if len(failed) == 0 {
+		if len(failed) == 0 && len(skipped) == 0 {
 			fmt.Println("All cases passed!")
 			return nil
+		}
+
+		fmt.Println("The following choice mappings had failed cases")
+		for k, v := range failedVariables {
+			fmt.Printf("%s:\n", k)
+			for c := range v {
+				fmt.Printf("- %s\n", c)
+			}
 		}
 
 		fmt.Println("The following cases failed:")
 		for _, c := range failed {
 			fmt.Println(loadedProject.TempPath(c))
 		}
+		fmt.Println("The following cases were skipped:")
+		for _, c := range skipped {
+			fmt.Println(loadedProject.TempPath(c))
+		}
 		if testBatch {
-			err = fmt.Errorf("Some tests failed!")
+			err = fmt.Errorf("Some tests failed or were skipped!")
 			return
 		}
 		fmt.Printf("Reports are found at %s, press enter when ready to remove (use --keep-reports to not delete report directories. Use --batch to skip this prompt)\n", loadedProject.TempDir)
@@ -132,4 +179,5 @@ func init() {
 	testCmd.Flags().BoolVar(&testOnlyLint, "only-lint", false, "If set, do not attempt to do a kubectl apply --dry-run")
 	testCmd.Flags().IntVar(&testParallel, "parallel", 1, "Number of cases to run in parallel. Set to zero to use number of cpu cores")
 	testCmd.Flags().BoolVar(&testKeepReports, "keep-reports", false, "Do not delete reports, even if all cases pass")
+	testCmd.Flags().BoolVar(&testPruneFailedChoices, "prune-failed-choices", false, "If true, skip any cases that share any choices with any failed cases. Note this is not guarnateed for performance reasons, and a few cases may still execute.")
 }
