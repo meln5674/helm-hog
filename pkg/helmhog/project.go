@@ -312,20 +312,34 @@ func (l *LoadedProject) Lint(c Case) gosh.Commander {
 }
 
 func (l *LoadedProject) ApplyDryRun(c Case) gosh.Commander {
-	template := []string{"helm", "template", l.Chart, "--debug"}
-	template = append(template, l.Settings.HelmFlags...)
-	template = append(template, l.ValuesArgs(c)...)
+	template := l.template(c)
 	apply := []string{"kubectl", "apply", "-f", "-", "--dry-run=client"}
 	apply = append(apply, l.Settings.KubectlFlags...)
 	return gosh.Pipeline(
-		gosh.Command(template...).WithStreams(gosh.FileErr(l.TempPath(c, "template.err"))),
+		template,
 		gosh.Command("tee", l.TempPath(c, "template.out")).WithStreams(gosh.FileErr(l.TempPath(c, "tee.err"))),
 		gosh.Command(apply...).WithStreams(gosh.FileOut(l.TempPath(c, "apply.out")), gosh.FileErr(l.TempPath(c, "apply.err"))),
 	)
 }
 
-func (l *LoadedProject) Validate(c Case) gosh.Commander {
+func (l *LoadedProject) template(c Case) *gosh.Cmd {
+	template := []string{"helm", "template", l.Chart, "--debug"}
+	template = append(template, l.Settings.HelmFlags...)
+	template = append(template, l.ValuesArgs(c)...)
+	return gosh.Command(template...).WithStreams(gosh.FileErr(l.TempPath(c, "template.err")))
+}
+
+func (l *LoadedProject) Template(c Case) gosh.Commander {
+	return l.template(c).WithStreams(gosh.FileOut(l.TempPath(c, "template.out")))
+}
+
+func (l *LoadedProject) ValidateWithApply(c Case) gosh.Commander {
+
 	return gosh.FanOut(l.Lint(c), l.ApplyDryRun(c))
+}
+
+func (l *LoadedProject) Validate(c Case) gosh.Commander {
+	return gosh.FanOut(l.Lint(c), l.Template(c))
 }
 
 func (l *LoadedProject) CaseTempDirParts(c Case) []string {

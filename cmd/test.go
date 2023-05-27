@@ -17,6 +17,7 @@ import (
 var (
 	testBatch              bool
 	testOnlyLint           bool
+	testNoApply            bool
 	testParallel           int
 	testKeepReports        bool
 	testPruneFailedChoices bool
@@ -90,8 +91,10 @@ to quickly create a Cobra application.`,
 					}
 					if testOnlyLint {
 						err = loadedProject.Lint(c).Run()
-					} else {
+					} else if testNoApply {
 						err = loadedProject.Validate(c).Run()
+					} else {
+						err = loadedProject.ValidateWithApply(c).Run()
 					}
 					if err == nil {
 						return false, err
@@ -176,7 +179,8 @@ func init() {
 	rootCmd.AddCommand(testCmd)
 
 	testCmd.Flags().BoolVar(&testBatch, "batch", false, "If set, do not prompt the user for report cleanup, and return non-zero on failure")
-	testCmd.Flags().BoolVar(&testOnlyLint, "only-lint", false, "If set, do not attempt to do a kubectl apply --dry-run")
+	testCmd.Flags().BoolVar(&testOnlyLint, "only-lint", false, "If set, do not attempt to do a helm template or kubectl apply --dry-run")
+	testCmd.Flags().BoolVar(&testNoApply, "no-apply", false, "If set, do not attempt to do a kubectl apply --dry-run, but still perform a helm template")
 	testCmd.Flags().IntVar(&testParallel, "parallel", 1, "Number of cases to run in parallel. Set to zero to use number of cpu cores")
 	testCmd.Flags().BoolVar(&testKeepReports, "keep-reports", false, "Do not delete reports, even if all cases pass")
 	testCmd.Flags().BoolVar(&testPruneFailedChoices, "prune-failed-choices", false, "If true, skip any cases that share any choices with any failed cases. Note this is not guarnateed for performance reasons, and a few cases may still execute.")
