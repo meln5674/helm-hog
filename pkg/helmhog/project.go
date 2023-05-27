@@ -325,7 +325,7 @@ func (l *LoadedProject) ApplyDryRun(c Case) gosh.Commander {
 }
 
 func (l *LoadedProject) Validate(c Case) gosh.Commander {
-	return gosh.And(l.Lint(c), l.ApplyDryRun(c))
+	return gosh.FanOut(l.Lint(c), l.ApplyDryRun(c))
 }
 
 func (l *LoadedProject) CaseTempDirParts(c Case) []string {
