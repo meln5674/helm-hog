@@ -244,7 +244,7 @@ func (p *Project) Load(settings ProjectSettings) (*LoadedProject, error) {
 	for ix := range l.VariableOrder {
 		l.ReverseVariableOrder[ix] = l.VariableOrder[ix]
 	}
-	sort.Reverse(sort.StringSlice(l.ReverseVariableOrder))
+	sort.Sort(sort.Reverse(sort.StringSlice(l.ReverseVariableOrder)))
 
 	if p.Chart == "" {
 		l.Chart = "."
