@@ -21,6 +21,7 @@ var (
 	testParallel           int
 	testKeepReports        bool
 	testPruneFailedChoices bool
+	testAutoRemoveSuccess  bool
 )
 
 // testCmd represents the test command
@@ -95,6 +96,12 @@ to quickly create a Cobra application.`,
 						err = loadedProject.Validate(c).Run()
 					} else {
 						err = loadedProject.ValidateWithApply(c).Run()
+					}
+					if testAutoRemoveSuccess {
+						os.RemoveAll(loadedProject.TempPath(c))
+						fmt.Printf("Removed %s\n", loadedProject.TempPath(c))
+					} else {
+						fmt.Printf("Not removing %s\n", loadedProject.TempPath(c))
 					}
 					if err == nil {
 						return false, err
@@ -184,4 +191,5 @@ func init() {
 	testCmd.Flags().IntVar(&testParallel, "parallel", 1, "Number of cases to run in parallel. Set to zero to use number of cpu cores")
 	testCmd.Flags().BoolVar(&testKeepReports, "keep-reports", false, "Do not delete reports, even if all cases pass")
 	testCmd.Flags().BoolVar(&testPruneFailedChoices, "prune-failed-choices", false, "If true, skip any cases that share any choices with any failed cases. Note this is not guarnateed for performance reasons, and a few cases may still execute.")
+	testCmd.Flags().BoolVar(&testAutoRemoveSuccess, "auto-remove-success", false, "If true, remove output files from successful cases immediately after case completion")
 }

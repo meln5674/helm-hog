@@ -308,7 +308,7 @@ func (l *LoadedProject) Lint(c Case) gosh.Commander {
 	cmd := []string{"helm", "lint", l.Chart}
 	cmd = append(cmd, l.Settings.HelmFlags...)
 	cmd = append(cmd, l.ValuesArgs(c)...)
-	return gosh.Command(cmd...).WithStreams(gosh.FileOut(l.TempPath(c, "lint.out")), gosh.FileErr(l.TempPath(c, "lint.err")))
+	return gosh.Command(cmd...).WithStreams(gosh.FileOut(l.LintOutPath(c)), gosh.FileErr(l.LintErrPath(c)))
 }
 
 func (l *LoadedProject) ApplyDryRun(c Case) gosh.Commander {
@@ -317,8 +317,8 @@ func (l *LoadedProject) ApplyDryRun(c Case) gosh.Commander {
 	apply = append(apply, l.Settings.KubectlFlags...)
 	return gosh.Pipeline(
 		template,
-		gosh.Command("tee", l.TempPath(c, "template.out")).WithStreams(gosh.FileErr(l.TempPath(c, "tee.err"))),
-		gosh.Command(apply...).WithStreams(gosh.FileOut(l.TempPath(c, "apply.out")), gosh.FileErr(l.TempPath(c, "apply.err"))),
+		gosh.Command("tee", l.TemplateOutPath(c)).WithStreams(gosh.FileErr(l.TeeErrPath(c))),
+		gosh.Command(apply...).WithStreams(gosh.FileOut(l.ApplyOutPath(c)), gosh.FileErr(l.ApplyErrPath(c))),
 	)
 }
 
@@ -326,11 +326,11 @@ func (l *LoadedProject) template(c Case) *gosh.Cmd {
 	template := []string{"helm", "template", l.Chart, "--debug"}
 	template = append(template, l.Settings.HelmFlags...)
 	template = append(template, l.ValuesArgs(c)...)
-	return gosh.Command(template...).WithStreams(gosh.FileErr(l.TempPath(c, "template.err")))
+	return gosh.Command(template...).WithStreams(gosh.FileErr(l.TemplateErrPath(c)))
 }
 
 func (l *LoadedProject) Template(c Case) gosh.Commander {
-	return l.template(c).WithStreams(gosh.FileOut(l.TempPath(c, "template.out")))
+	return l.template(c).WithStreams(gosh.FileOut(l.TemplateOutPath(c)))
 }
 
 func (l *LoadedProject) ValidateWithApply(c Case) gosh.Commander {
@@ -358,4 +358,44 @@ func (l *LoadedProject) TempPath(c Case, then ...string) string {
 	parts := l.CaseTempDirParts(c)
 	parts = append(parts, then...)
 	return filepath.Join(parts...)
+}
+
+func (l *LoadedProject) LintOutPath(c Case) string {
+	return l.TempPath(c, "lint.out")
+}
+
+func (l *LoadedProject) LintErrPath(c Case) string {
+	return l.TempPath(c, "lint.err")
+}
+
+func (l *LoadedProject) TemplateOutPath(c Case) string {
+	return l.TempPath(c, "template.out")
+}
+
+func (l *LoadedProject) TeeErrPath(c Case) string {
+	return l.TempPath(c, "tee.err")
+}
+
+func (l *LoadedProject) TemplateErrPath(c Case) string {
+	return l.TempPath(c, "template.err")
+}
+
+func (l *LoadedProject) ApplyOutPath(c Case) string {
+	return l.TempPath(c, "apply.out")
+}
+
+func (l *LoadedProject) ApplyErrPath(c Case) string {
+	return l.TempPath(c, "apply.err")
+}
+
+func (l *LoadedProject) AllTempPaths(c Case) []string {
+	return []string{
+		l.LintOutPath(c),
+		l.LintErrPath(c),
+		l.TemplateOutPath(c),
+		l.TemplateErrPath(c),
+		l.TeeErrPath(c),
+		l.ApplyOutPath(c),
+		l.ApplyErrPath(c),
+	}
 }
